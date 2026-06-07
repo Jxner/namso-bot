@@ -1,19 +1,19 @@
 import logging
 import random
-import json
-import csv
 import io
-from datetime import datetime
+import os
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 
-# CONFIGURA TU TOKEN AQUÍ (línea 11)
-TOKEN = "8087989542:AAGRb-mmNl5B5J0nCdxGrhPwg1V_4TWt7FY"
-
+# Configurar logging
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
 )
+logger = logging.getLogger(__name__)
+
+# TOKEN - usa variable de entorno o el valor directo
+TOKEN = os.environ.get("TOKEN", "PEGA_TU_TOKEN_AQUI")
 
 class NamsoGen:
     def __init__(self):
@@ -35,8 +35,9 @@ class NamsoGen:
         number = prefix
         while len(number) < length - 1:
             number += str(random.randint(0, 9))
-        checksum = sum(int(d) for d in str(self.luhn_checksum(int(number)*10)))
-        check_digit = (10 - checksum) % 10
+        # Calcular dígito de verificación
+        check = self.luhn_checksum(int(number) * 10)
+        check_digit = (10 - check) % 10
         return int(number + str(check_digit))
     
     def generate_full(self, bin_input, qty=10):
@@ -75,7 +76,11 @@ async def generate(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     bin_input = context.args[0]
-    qty = int(context.args[1]) if len(context.args) > 1 else 10
+    try:
+        qty = int(context.args[1]) if len(context.args) > 1 else 10
+    except:
+        qty = 10
+    
     if qty > 100:
         qty = 100
     
@@ -110,12 +115,17 @@ async def export(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 def main():
-    app = Application.builder().token(TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("gen", generate))
-    app.add_handler(CommandHandler("export", export))
+    # Crear aplicación
+    application = Application.builder().token(TOKEN).build()
+    
+    # Añadir handlers
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("gen", generate))
+    application.add_handler(CommandHandler("export", export))
+    
+    # Iniciar
     print("🤖 Bot iniciado!")
-    app.run_polling()
+    application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == '__main__':
     main()
